@@ -1,0 +1,21 @@
+{
+    "name": "gitesoft/php-steamlogin",
+    "description": "Steam Login with Session and Cookie Support for bot login for trading.",
+    "keywords": ["steam", "session-login", "auth"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "https://github.com/iliyaZelenko",
+            "email": "https://github.com/iliyaZelenko/php-steamlogin"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0",
+        "laravel/framework": "5.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gitesoft\\PhpSteamSessionLogin\\": "src"
+        }
+    }
+}
