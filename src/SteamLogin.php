@@ -13,19 +13,14 @@ class SteamLogin
     private $config = array(
         'username' => '',
         'password' => '',
-        'datapath' => '',
+        'steam_id_64' => '',
     );
     private $accountdata = array();
 
     public function __construct($config)
     {
         $this->config = $config;
-        if ($this->config['username'] != '' && $this->config['password'] != '' && $this->config['datapath'] != '') {
-
-            if (file_exists($this->config['datapath'] . '/logindata.json')) {
-                $account = json_decode(file_get_contents($this->config['datapath'] . '/logindata.json'));
-                $this->accountdata['steamid'] = ((isset($account->steamid)) ? $account->steamid : '');
-            }
+        if ($this->config['username'] != '' && $this->config['password'] != '' && $this->config['steam_id_64'] != '') {
 
             $this->success = true;
         } else {
@@ -63,7 +58,6 @@ class SteamLogin
             if ($login->success == false) {
                 if (isset($login->emailsteamid) && $login->emailauth_needed == true) {
                     if ($authcode == '') {
-                        file_put_contents($this->config['datapath'] . '/logindata.json', json_encode(array('steamid' => $login->emailsteamid)));
                         $this->error('Please enter AUTHCODE available in your e-mail inbox (domain: ' . $login->emaildomain . ').');
                     } else {
                         $this->error('You enter bad authcode!');
@@ -82,7 +76,7 @@ class SteamLogin
                 return array(
                     'steamid' => $login->transfer_parameters->steamid,
                     'sessionId' => $matches[1][0],
-                    'cookies' => $this->cookiejarToString(file_get_contents('cookiejar.txt')),
+                    'cookies' => $this->cookiejarToString(file_get_contents('./cookiejar.txt')),
                 );
             }
             return $login;
@@ -107,8 +101,8 @@ class SteamLogin
         curl_setopt($c, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($c, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7");
         curl_setopt($c, CURLOPT_COOKIESESSION, false);
-        curl_setopt($c, CURLOPT_COOKIEJAR, $this->config['datapath'] . '/cookiejar.txt');
-        curl_setopt($c, CURLOPT_COOKIEFILE, $this->config['datapath'] . '/cookiejar.txt');
+        curl_setopt($c, CURLOPT_COOKIEJAR, './cookiejar.txt');
+        curl_setopt($c, CURLOPT_COOKIEFILE, './cookiejar.txt');
         curl_setopt($c, CURLOPT_POST, 1);
         curl_setopt($c, CURLOPT_POSTFIELDS, http_build_query($data));
         curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
