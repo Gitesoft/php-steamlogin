@@ -1,6 +1,6 @@
 <?php
 define('php-steamlogin', true);
-require('main.php');
+require('SteamLogin.php');
 
 $SteamLogin = new SteamLogin(array(
 	'username' => '',
