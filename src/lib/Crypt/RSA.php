@@ -79,9 +79,9 @@ if (!function_exists('crypt_random_string')) {
 }
 
 /**
- * Include Crypt_Hash
+ * Include Crypt_Hash1
  */
-if (!class_exists('Crypt_Hash')) {
+if (!class_exists('Crypt_Hash1')) {
     include_once 'Hash.php';
 }
 
@@ -370,7 +370,7 @@ class Crypt_RSA
     /**
      * Hash function
      *
-     * @var Crypt_Hash
+     * @var Crypt_Hash1
      * @access private
      */
     var $hash;
@@ -394,7 +394,7 @@ class Crypt_RSA
     /**
      * Hash function for the Mask Generation Function
      *
-     * @var Crypt_Hash
+     * @var Crypt_Hash1
      * @access private
      */
     var $mgfHash;
@@ -554,10 +554,10 @@ class Crypt_RSA
         $this->zero = new Math_BigInteger();
         $this->one = new Math_BigInteger(1);
 
-        $this->hash = new Crypt_Hash('sha1');
+        $this->hash = new Crypt_Hash1('sha1');
         $this->hLen = $this->hash->getLength();
         $this->hashName = 'sha1';
-        $this->mgfHash = new Crypt_Hash('sha1');
+        $this->mgfHash = new Crypt_Hash1('sha1');
         $this->mgfHLen = $this->mgfHash->getLength();
     }
 
@@ -858,10 +858,10 @@ class Crypt_RSA
                 $private = base64_encode($private);
                 $key.= 'Private-Lines: ' . ((strlen($private) + 63) >> 6) . "\r\n";
                 $key.= chunk_split($private, 64);
-                if (!class_exists('Crypt_Hash')) {
+                if (!class_exists('Crypt_Hash1')) {
                     include_once 'Crypt/Hash.php';
                 }
-                $hash = new Crypt_Hash('sha1');
+                $hash = new Crypt_Hash1('sha1');
                 $hash->setKey(pack('H*', sha1($hashkey)));
                 $key.= 'Private-MAC: ' . bin2hex($hash->hash($source)) . "\r\n";
 
@@ -1597,10 +1597,10 @@ class Crypt_RSA
             $this->comment = $key->comment;
 
             if (is_object($key->hash)) {
-                $this->hash = new Crypt_Hash($key->hash->getHash());
+                $this->hash = new Crypt_Hash1($key->hash->getHash());
             }
             if (is_object($key->mgfHash)) {
-                $this->mgfHash = new Crypt_Hash($key->mgfHash->getHash());
+                $this->mgfHash = new Crypt_Hash1($key->mgfHash->getHash());
             }
 
             if (is_object($key->modulus)) {
@@ -1851,7 +1851,7 @@ class Crypt_RSA
 
         switch ($algorithm) {
             case 'sha256':
-                $hash = new Crypt_Hash('sha256');
+                $hash = new Crypt_Hash1('sha256');
                 $base = base64_encode($hash->hash($RSAPublicKey));
                 return substr($base, 0, strlen($base) - 1);
             case 'md5':
@@ -2055,7 +2055,7 @@ class Crypt_RSA
      */
     function setHash($hash)
     {
-        // Crypt_Hash supports algorithms that PKCS#1 doesn't support.  md5-96 and sha1-96, for example.
+        // Crypt_Hash1 supports algorithms that PKCS#1 doesn't support.  md5-96 and sha1-96, for example.
         switch ($hash) {
             case 'md2':
             case 'md5':
@@ -2063,11 +2063,11 @@ class Crypt_RSA
             case 'sha256':
             case 'sha384':
             case 'sha512':
-                $this->hash = new Crypt_Hash($hash);
+                $this->hash = new Crypt_Hash1($hash);
                 $this->hashName = $hash;
                 break;
             default:
-                $this->hash = new Crypt_Hash('sha1');
+                $this->hash = new Crypt_Hash1('sha1');
                 $this->hashName = 'sha1';
         }
         $this->hLen = $this->hash->getLength();
@@ -2084,7 +2084,7 @@ class Crypt_RSA
      */
     function setMGFHash($hash)
     {
-        // Crypt_Hash supports algorithms that PKCS#1 doesn't support.  md5-96 and sha1-96, for example.
+        // Crypt_Hash1 supports algorithms that PKCS#1 doesn't support.  md5-96 and sha1-96, for example.
         switch ($hash) {
             case 'md2':
             case 'md5':
@@ -2092,10 +2092,10 @@ class Crypt_RSA
             case 'sha256':
             case 'sha384':
             case 'sha512':
-                $this->mgfHash = new Crypt_Hash($hash);
+                $this->mgfHash = new Crypt_Hash1($hash);
                 break;
             default:
-                $this->mgfHash = new Crypt_Hash('sha1');
+                $this->mgfHash = new Crypt_Hash1('sha1');
         }
         $this->mgfHLen = $this->mgfHash->getLength();
     }
