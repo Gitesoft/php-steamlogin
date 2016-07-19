@@ -8,6 +8,8 @@ namespace Gitesoft\PhpSteamSessionLogin {
 
     class SteamLogin
     {
+        const USER_AGENT = "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7";
+        const COOKIE_PATH = '../storage/framework/bot_cookies/%d.cookie';
 
         public $error = false;
         public $success = false;
@@ -17,8 +19,15 @@ namespace Gitesoft\PhpSteamSessionLogin {
             'password' => '',
             'steam_id_64' => '',
         );
+
+        private $cookiePath = '';
+
         private $accountdata = array();
 
+        /**
+         * SteamLogin constructor.
+         * @param $config
+         */
         public function __construct($config)
         {
             $this->config = $config;
@@ -29,8 +38,26 @@ namespace Gitesoft\PhpSteamSessionLogin {
                 $this->error('Bad config!');
             }
 
+            $this->cookiePath = sprintf(self::COOKIE_PATH, $this->config['steam_id_64']);
         }
 
+        /**
+         * @return null|string
+         */
+        public function getCookie()
+        {
+            if (!file_exists($this->cookiePath)) {
+                return null;
+            }
+
+            return file_get_contents($this->cookiePath);
+        }
+
+        /**
+         * @param string $authcode
+         * @param string $twofactorcode
+         * @return array|mixed
+         */
         public function login($authcode = '', $twofactorcode = '')
         {
             $dologin = $this->getRSAkey();
@@ -75,10 +102,13 @@ namespace Gitesoft\PhpSteamSessionLogin {
                     }
                 } else {
                     preg_match_all('#g_sessionID\\s\=\\s\"(.*?)\"\;#si', $this->view('http://steamcommunity.com/id'), $matches);
+
+                    $cookie = file_get_contents($this->cookiePath);
+
                     return array(
                         'steamid' => $login->transfer_parameters->steamid,
                         'sessionId' => $matches[1][0],
-                        'cookies' => $this->cookiejarToString(file_get_contents('./cookiejar.txt')),
+                        'cookies' => $this->cookiejarToString($cookie),
                     );
                 }
                 return $login;
@@ -89,11 +119,21 @@ namespace Gitesoft\PhpSteamSessionLogin {
             return $dologin;
         }
 
+        /**
+         * @param $url
+         * @return mixed
+         */
         public function view($url)
         {
             return $this->request('POST', $url);
         }
 
+        /**
+         * @param $type
+         * @param $url
+         * @param array $data
+         * @return mixed
+         */
         private function request($type, $url, $data = array())
         {
             $c = curl_init();
@@ -101,10 +141,10 @@ namespace Gitesoft\PhpSteamSessionLogin {
             curl_setopt($c, CURLOPT_NOBODY, false);
             curl_setopt($c, CURLOPT_URL, $url);
             curl_setopt($c, CURLOPT_SSL_VERIFYHOST, 0);
-            curl_setopt($c, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7");
+            curl_setopt($c, CURLOPT_USERAGENT, self::USER_AGENT);
             curl_setopt($c, CURLOPT_COOKIESESSION, false);
-            curl_setopt($c, CURLOPT_COOKIEJAR, './cookiejar.txt');
-            curl_setopt($c, CURLOPT_COOKIEFILE, './cookiejar.txt');
+            curl_setopt($c, CURLOPT_COOKIEJAR, $this->cookiePath);
+            curl_setopt($c, CURLOPT_COOKIEFILE, $this->cookiePath);
             curl_setopt($c, CURLOPT_POST, 1);
             curl_setopt($c, CURLOPT_POSTFIELDS, http_build_query($data));
             curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
@@ -117,6 +157,9 @@ namespace Gitesoft\PhpSteamSessionLogin {
             return $return;
         }
 
+        /**
+         * @return mixed
+         */
         private function getRSAkey()
         {
             return json_decode($this->request('POST', 'https://steamcommunity.com/login/getrsakey/', array(
@@ -125,6 +168,10 @@ namespace Gitesoft\PhpSteamSessionLogin {
             )));
         }
 
+        /**
+         * @param $string
+         * @return string
+         */
         private function cookiejarToString($string)
         {
             $cookieString = '';
@@ -139,6 +186,9 @@ namespace Gitesoft\PhpSteamSessionLogin {
             return $cookieString;
         }
 
+        /**
+         * @param $error
+         */
         private function error($error)
         {
             if ($this->error === false) {
