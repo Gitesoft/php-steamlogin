@@ -11,34 +11,47 @@ namespace Gitesoft\PhpSteamSessionLogin {
         const USER_AGENT = "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7";
         const COOKIE_PATH = '../storage/framework/bot_cookies/%d.cookie';
 
-        public $error = false;
-        public $success = false;
-
-        private $config = array(
-            'username' => '',
-            'password' => '',
-            'steam_id_64' => '',
-        );
+        public $config;
 
         private $cookiePath = '';
 
-        private $accountdata = array();
+        private $accountdata = [];
 
         /**
          * SteamLogin constructor.
          * @param $config
          */
-        public function __construct($config)
+        public function __construct(array $config)
         {
-            $this->config = $config;
-            if ($this->config['username'] != '' && $this->config['password'] != '' && $this->config['steam_id_64'] != '') {
-
-                $this->success = true;
-            } else {
-                $this->error('Bad config!');
+            if (
+                empty($config['ACCOUNT_USER']) ||
+                empty($config['ACCOUNT_PASS']) ||
+                empty($config['STEAM_64_ID'])
+            )  {
+                throw new \Exception('Corrupted Bot Config. Please make sure config contains "ACCOUNT_USER, ACCOUNT_PASS, STEAM_64_ID" keys with correct values.');
             }
 
-            $this->cookiePath = sprintf(self::COOKIE_PATH, $this->config['steam_id_64']);
+            $this->config = $config;
+            $this->cookiePath = sprintf(self::COOKIE_PATH, $this->config['STEAM_64_ID']);
+        }
+
+        public function isLoggedIn()
+        {
+            $cookieString = $this->getCookie();
+            if (is_null($cookieString)) {
+                return false;
+            }
+            $this->checkIsCookieValid($cookieString);
+        }
+
+        /**
+         * @todo Implement cookie check method
+         * @param $cookieString
+         * @return bool
+         */
+        protected function checkIsCookieValid($cookieString) {
+            dd($cookieString);
+            return true;
         }
 
         /**
@@ -54,69 +67,66 @@ namespace Gitesoft\PhpSteamSessionLogin {
         }
 
         /**
-         * @param string $authcode
-         * @param string $twofactorcode
+         * @param string $authCode
+         * @param string $twoFactorCode
          * @return array|mixed
          */
-        public function login($authcode = '', $twofactorcode = '')
+        public function login($authCode = '', $twoFactorCode = '')
         {
-            $dologin = $this->getRSAkey();
-            if ($dologin->publickey_mod && $dologin->publickey_exp && $dologin->timestamp) {
-
-                $password = $this->config['password'];
-                $rsa = new \Crypt_RSA();
-                $key = array('modulus' => new \Math_BigInteger($dologin->publickey_mod, 16), 'publicExponent' => new \Math_BigInteger($dologin->publickey_exp, 16));
-                $rsa->loadKey($key, CRYPT_RSA_PUBLIC_FORMAT_RAW);
-                $rsa->setPublicKey($key);
-                $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
-                $enc_password = base64_encode($rsa->encrypt($password));
-
-                $login = $this->request('POST', 'https://steamcommunity.com/login/dologin/', array(
-                    'password' => $enc_password,
-                    'username' => $this->config['username'],
-                    'twofactorcode' => $twofactorcode,
-                    'emailauth' => $authcode,
-                    'loginfriendlyname' => '',
-                    'capatcha_text' => '',
-                    'emailsteamid' => ((isset($this->accountdata['steamid'])) ? $this->accountdata['steamid'] : ''),
-                    'rsatimestamp' => $dologin->timestamp,
-                    'remember_login' => 'true',
-                    'donotcache' => time(),
-                ));
-                $login = json_decode($login);
-                if ($login->success == false) {
-                    if (isset($login->emailsteamid) && $login->emailauth_needed == true) {
-                        if ($authcode == '') {
-                            $this->error('Please enter AUTHCODE available in your e-mail inbox (domain: ' . $login->emaildomain . ').');
-                        } else {
-                            $this->error('You enter bad authcode!');
-                        }
-
-                    } else if ($login->requires_twofactor == true) {
-                        if ($twofactorcode == '') {
-                            $this->error('Please enter twofactorcode (mobile auth).');
-                        } else {
-                            $this->error('You enter bad twofactorcode!');
-                        }
-
-                    }
-                } else {
-                    preg_match_all('#g_sessionID\\s\=\\s\"(.*?)\"\;#si', $this->view('http://steamcommunity.com/id'), $matches);
-
-                    $cookie = file_get_contents($this->cookiePath);
-
-                    return array(
-                        'steamid' => $login->transfer_parameters->steamid,
-                        'sessionId' => $matches[1][0],
-                        'cookies' => $this->cookiejarToString($cookie),
-                    );
-                }
-                return $login;
-            } else {
-                $this->error('Bad RSA!');
+            $doLogin = $this->getRSAkey();
+            if ( !($doLogin->publickey_mod && $doLogin->publickey_exp && $doLogin->timestamp) ) {
+                throw new \Exception('Bad RSA!');
             }
 
-            return $dologin;
+            $rsa = new \Crypt_RSA();
+            $key = array('modulus' => new \Math_BigInteger($doLogin->publickey_mod, 16), 'publicExponent' => new \Math_BigInteger($doLogin->publickey_exp, 16));
+            $rsa->loadKey($key, CRYPT_RSA_PUBLIC_FORMAT_RAW);
+            $rsa->setPublicKey($key);
+            $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
+            $enc_password = base64_encode($rsa->encrypt($this->config['ACCOUNT_PASS']));
+
+            $login = $this->request('POST', 'https://steamcommunity.com/login/dologin/', array(
+                'password' => $enc_password,
+                'username' => $this->config['ACCOUNT_USER'],
+                'twofactorcode' => $twoFactorCode,
+                'emailauth' => $authCode,
+                'loginfriendlyname' => '',
+                'capatcha_text' => '',
+                'emailsteamid' => ((isset($this->accountdata['steamid'])) ? $this->accountdata['steamid'] : ''),
+                'rsatimestamp' => $doLogin->timestamp,
+                'remember_login' => 'true',
+                'donotcache' => time(),
+            ));
+            $login = json_decode($login);
+            if ($login->success == false) {
+
+                if (isset($login->emailsteamid) && $login->emailauth_needed == true) {
+                    if ($authCode == '') {
+                        throw new \Exception('Please enter AUTHCODE available in your e-mail inbox (domain: ' . $login->emaildomain . ').');
+                    } else {
+                        throw new \Exception('You enter bad authcode!');
+                    }
+
+                } else if ($login->requires_twofactor == true) {
+                    if ($twoFactorCode == '') {
+                        throw new \Exception('Please enter twofactorcode (mobile auth).');
+                    } else {
+                        throw new \Exception('You enter bad twofactorcode!');
+                    }
+                }
+
+                throw new \Exception("Unsuccessful Login Attempt!");
+            }
+            preg_match_all('#g_sessionID\\s\=\\s\"(.*?)\"\;#si', $this->view('http://steamcommunity.com/id'), $matches);
+
+            $cookie = file_get_contents($this->cookiePath);
+
+            return array(
+                'steamid' => $login->transfer_parameters->steamid,
+                'sessionId' => $matches[1][0],
+                'cookies' => $this->cookiejarToString($cookie),
+            );
+
         }
 
         /**
@@ -163,7 +173,7 @@ namespace Gitesoft\PhpSteamSessionLogin {
         private function getRSAkey()
         {
             return json_decode($this->request('POST', 'https://steamcommunity.com/login/getrsakey/', array(
-                'username' => $this->config['username'],
+                'username' => $this->config['ACCOUNT_USER'],
                 'donotcache' => time(),
             )));
         }
@@ -184,17 +194,6 @@ namespace Gitesoft\PhpSteamSessionLogin {
                 }
             }
             return $cookieString;
-        }
-
-        /**
-         * @param $error
-         */
-        private function error($error)
-        {
-            if ($this->error === false) {
-                $this->error = $error;
-            }
-
         }
 
     }
