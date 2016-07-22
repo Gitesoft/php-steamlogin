@@ -11,7 +11,7 @@ namespace Gitesoft\PhpSteamSessionLogin {
         const USER_AGENT = "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7";
         const COOKIE_PATH = '../storage/framework/bot_cookies/%d.cookie';
 
-        public $config;
+        public $config = [];
 
         private $cookiePath = '';
 
