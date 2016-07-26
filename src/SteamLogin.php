@@ -26,7 +26,8 @@ namespace Gitesoft\PhpSteamSessionLogin {
             if (
                 empty($config['ACCOUNT_USER']) ||
                 empty($config['ACCOUNT_PASS']) ||
-                empty($config['STEAM_64_ID'])
+                empty($config['STEAM_64_ID'])  ||
+                empty($config['STEAM_API_KEY'])
             )  {
                 throw new \Exception('Corrupted Bot Config. Please make sure config contains "ACCOUNT_USER, ACCOUNT_PASS, STEAM_64_ID" keys with correct values.');
             }
@@ -84,19 +85,20 @@ namespace Gitesoft\PhpSteamSessionLogin {
             $rsa->setPublicKey($key);
             $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
             $enc_password = base64_encode($rsa->encrypt($this->config['ACCOUNT_PASS']));
-
-            $login = $this->request('POST', 'https://steamcommunity.com/login/dologin/', array(
+            $requestVariables = [
                 'password' => $enc_password,
                 'username' => $this->config['ACCOUNT_USER'],
-                'twofactorcode' => $twoFactorCode,
                 'emailauth' => $authCode,
+                'twofactorcode' => $twoFactorCode,
                 'loginfriendlyname' => '',
                 'capatcha_text' => '',
                 'emailsteamid' => ((isset($this->accountdata['steamid'])) ? $this->accountdata['steamid'] : ''),
                 'rsatimestamp' => $doLogin->timestamp,
                 'remember_login' => 'true',
                 'donotcache' => time(),
-            ));
+            ];
+
+            $login = $this->request('POST', 'https://steamcommunity.com/login/dologin/', $requestVariables);
             $login = json_decode($login);
             if ($login->success == false) {
 
@@ -115,7 +117,7 @@ namespace Gitesoft\PhpSteamSessionLogin {
                     }
                 }
 
-                throw new \Exception("Unsuccessful Login Attempt!");
+                throw new \Exception(print_r($login, true));
             }
             preg_match_all('#g_sessionID\\s\=\\s\"(.*?)\"\;#si', $this->view('http://steamcommunity.com/id'), $matches);
 
@@ -144,9 +146,15 @@ namespace Gitesoft\PhpSteamSessionLogin {
          * @param array $data
          * @return mixed
          */
-        private function request($type, $url, $data = array())
+        private function request($type, $url, $data = [])
         {
+
             $c = curl_init();
+
+            if (!empty($_SERVER['REQUEST_URI'])) {
+                curl_setopt($c, CURLOPT_REFERER, $_SERVER['REQUEST_URI']);
+            }
+
             curl_setopt($c, CURLOPT_HEADER, false);
             curl_setopt($c, CURLOPT_NOBODY, false);
             curl_setopt($c, CURLOPT_URL, $url);
@@ -158,7 +166,6 @@ namespace Gitesoft\PhpSteamSessionLogin {
             curl_setopt($c, CURLOPT_POST, 1);
             curl_setopt($c, CURLOPT_POSTFIELDS, http_build_query($data));
             curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($c, CURLOPT_REFERER, $_SERVER['REQUEST_URI']);
             curl_setopt($c, CURLOPT_SSL_VERIFYPEER, 0);
             curl_setopt($c, CURLOPT_FOLLOWLOCATION, 1);
             curl_setopt($c, CURLOPT_CUSTOMREQUEST, strtoupper($type));
